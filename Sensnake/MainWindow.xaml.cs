@@ -21,24 +21,46 @@ namespace Sensnake
     /// </summary>
     public partial class MainWindow : Window
     {
-        const int SnakeSquareSize = 20;
+        const int SnakeSquareSize = 20; // This is the pre-set square size of the playground tiles
+        const int SnakeStartLength = 3; // Starting snake length
+        const int MinSpeed = 400;   // Starting speed of the game, the game will refresh once in 400 ticks (slowest)
+        const int MaxSpeed = 100;   // Maximum speed of the game, the game will refresh once in 100 ticks (fastest)
 
-        private SolidColorBrush headColor = Brushes.Red;
-        private List<SnakeSegment> segments = new List<SnakeSegment>();
+        private SolidColorBrush headColor = Brushes.Red; // This is the color of the snake's head
+        private List<SnakeSegment> segments = new List<SnakeSegment>(); // this is the list of visible segments
+                                                                        // !!! Note: the lenghth of is not the same 
+                                                                        // as snakeLength, which is more of a score 
+                                                                        // the player reached
 
-        public enum SnakeDirection { Up, Down, Left, Right };
-        private SnakeDirection snakeDirection = SnakeDirection.Right;
-        private int snakeLength;
+        public enum SnakeDirection { Up, Down, Left, Right };   // enum storing the values for snakeDirection variable
+        private SnakeDirection snakeDirection = SnakeDirection.Right; // represents the direction the snake is moving in real time
+        private int snakeLength; // Actual snake's length, also player's current score
+
+        private System.Windows.Threading.DispatcherTimer tickTimer  // To keep the snake moving, we need to perpetually re-call
+            = new System.Windows.Threading.DispatcherTimer();       // the MoveSnake() method using threads, which will do it for us
 
         public MainWindow()
         {
-            InitializeComponent();
+            InitializeComponent(); // Initialize the main windows component
+            tickTimer.Tick += TickTimer_Tick; // Subscribe to the threading handler
         }
 
+        /// <summary>
+        /// This is the handler that will recursively call the MoveSnake() function, effectively simulating
+        /// the snake's movement on the visible game window
+        /// <summary>
+        private void TickTimer_Tick(object sender, EventArgs e)
+        {
+            MoveSnake();
+        }
+
+        /// <summary>
+        /// This event handler fills the Playground with squares on start-up
+        /// <summary>
         private void Window_ContentRendered(object sender, EventArgs e)
         {
-            int x = 0;
-            int y = 0;
+            int y = 0; // Y position of the first (and consecutive) rectangle(s) on the canvas
+            int x = 0; // X position of the first (and consecutive) rectangle(s) on the canvas
             int rects = 0;
 
             bool stop = false;  
@@ -67,12 +89,17 @@ namespace Sensnake
                 }
                 rects++;
             }
+            StartGame(); // start the game after loading the playground
         }
 
-        // Returns rectangle fill color based on the number of rectangles
+        /// <summary>
+        /// Returns rectangle fill color based on the number of rectangles
+        /// <summary>
         private SolidColorBrush GetNextColor(int rects) => rects % 2 == 0 ? Brushes.ForestGreen : Brushes.Green;
 
-        // Draws snake on the visible game map based on the stored positions
+        /// <summary>
+        /// Draws snake on the visible game map based on the stored positions
+        /// <summary>
         private void DrawSnake()
         {
             foreach(SnakeSegment segment in segments)
@@ -93,6 +120,9 @@ namespace Sensnake
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
         private void MoveSnake()
         {
             // Snake movement explained - First we make the snake one segment shorter
@@ -151,10 +181,32 @@ namespace Sensnake
             DrawSnake();
         }
 
-        // This method will return the body color based on the segment's blocks distance from the head
-        // If it's odd, return Black
-        // If it's even, return Orange
+        /// <summary>
+        /// This method will return the body color based on the segment's blocks distance from the head
+        /// If it's odd, return Black
+        /// If it's even, return Orange
+        /// <summary>
         private SolidColorBrush bodyColor(int blocksFromHead) => blocksFromHead % 2 == 0 ? Brushes.Orange : Brushes.Black;
 
+        /// <summary>
+        /// Start a new game with default starting values
+        /// </summary>
+        private void StartGame()
+        {
+            snakeLength = SnakeStartLength;
+            snakeDirection = SnakeDirection.Right;
+            segments.Add(new SnakeSegment
+            {
+                position = new Point(0, SnakeSquareSize * 5),   // Starting position (in blocks) is (X,Y)=(0,5)
+            });
+            tickTimer.Interval = TimeSpan.FromMilliseconds(MinSpeed);   // At the start the game refreshes snake's
+                                                                        // position once in 100 milliseconds
+
+            // Draw the snake's head on the map
+            DrawSnake();
+
+            // Start the tick timer
+            tickTimer.IsEnabled = true;
+        }
     }
 }
