@@ -39,6 +39,9 @@ namespace Sensnake
         private System.Windows.Threading.DispatcherTimer tickTimer  // To keep the snake moving, we need to perpetually re-call
             = new System.Windows.Threading.DispatcherTimer();       // the MoveSnake() method using threads, which will do it for us
 
+        private UIElement food = null;  // Circles on the map representing food
+        private SolidColorBrush foodColor = Brushes.OrangeRed; // Color of the food circle
+
         public MainWindow()
         {
             InitializeComponent(); // Initialize the main windows component
@@ -202,11 +205,88 @@ namespace Sensnake
             tickTimer.Interval = TimeSpan.FromMilliseconds(MinSpeed);   // At the start the game refreshes snake's
                                                                         // position once in 100 milliseconds
 
-            // Draw the snake's head on the map
+            // Place the core elements on the map
             DrawSnake();
+            DrawFood();
 
             // Start the tick timer
             tickTimer.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// Dicates where the next food chunk should be placed after starting the game
+        /// or consuming the previous chunk
+        /// </summary>
+        private Point PlantFood(int sofdefender = 0)
+        {
+            Random rnd = new Random();  // initialize the random value
+            int maxX = (int)Playground.ActualWidth / SnakeSquareSize;   // Maximum X value a food can be generated on (in squares)
+            int maxY = (int)Playground.ActualHeight / SnakeSquareSize;  // Maximum Y value a food can be generated on (in squares)
+            int plantX = rnd.Next(0, maxX) * SnakeSquareSize;   // Randomize the next X position the chunk is to be planted on
+            int plantY = rnd.Next(0, maxY) * SnakeSquareSize;   // Randomize the next Y position the chunk is to be planted on
+
+            Point randPlantPoint = new Point(plantX, plantY);
+
+            if (sofdefender == 10)   // if the sofdefender (StackOverflowDefender) reaches 10 (due to the size of the snake),
+            {                        // the new algorithm will attempt to find a new free position faster
+                randPlantPoint = FindFirstPosition(maxX, maxY);
+            }
+            if (sofdefender < 10)
+            {
+                foreach (SnakeSegment segment in segments) // Checks if the potential food position is occupied by one of the
+                                                           // snake's segments...
+                {
+                    if (segment.position.Equals(randPlantPoint))
+                    {
+                        sofdefender++;
+                        PlantFood(sofdefender); // ... if so, then restart
+                    }
+                }
+            }
+            return randPlantPoint; 
+        }
+
+        /// <summary>
+        /// Returns the position of the next free space
+        /// Called when there is a risk of stack overflow
+        /// </summary>
+        /// <param name="maxX">Maximum canvas width</param>
+        /// <param name="maxY">Maximum canvas height</param>
+        /// <returns>Position of the next free space</returns>
+        private Point FindFirstPosition(int maxX, int maxY)
+        {
+            for(int y = 0; y <= maxY; y += SnakeSquareSize)
+            {
+                for(int x = 0; x <= maxX; x += SnakeSquareSize)
+                {
+                    foreach(SnakeSegment segment in segments)
+                    {
+                        if(!(new Point(x,y).Equals(segment.position)))
+                        {
+                            return new Point(x, y); // return the first free position on the playground
+                        }
+                    }
+                }
+            }
+            throw new Exception("No free space found"); // throw the exception when the snake occupies all the map
+        }
+
+        /// <summary>
+        /// Put the food element on the visible game map
+        /// </summary>
+        private void DrawFood()
+        {
+            Point position = PlantFood(); // get the adequate position from the algorithm
+            food = new Ellipse  // create a new shape representing food
+            {
+                Width = SnakeSquareSize,
+                Height = SnakeSquareSize,
+                Fill = foodColor
+            };
+
+            Playground.Children.Add(food);  // add the circle to the Playground elements
+            Canvas.SetLeft(food, position.X);   // position it to the correcnt X coordinate
+            Canvas.SetTop(food, position.Y);    // position it to the correcnt Y coordinate
         }
     }
 }
