@@ -22,9 +22,11 @@ namespace Sensnake
     public partial class MainWindow : Window
     {
         const int SnakeSquareSize = 20; // This is the pre-set square size of the playground tiles
-        const int SnakeStartLength = 3; // Starting snake length
+        const int SnakeStartLength = 2; // Starting snake length
         const int MinSpeed = 400;   // Starting speed of the game, the game will refresh once in 400 ticks (slowest)
         const int MaxSpeed = 100;   // Maximum speed of the game, the game will refresh once in 100 ticks (fastest)
+        private int CurrentSpeed = MinSpeed;
+        private int score = 0;      // Current player score (food eaten)
 
         private SolidColorBrush headColor = Brushes.Red; // This is the color of the snake's head
         private List<SnakeSegment> segments = new List<SnakeSegment>(); // this is the list of visible segments
@@ -41,6 +43,9 @@ namespace Sensnake
 
         private UIElement food = null;  // Circles on the map representing food
         private SolidColorBrush foodColor = Brushes.OrangeRed; // Color of the food circle
+
+        private Grid gameOverBlock = null;
+        bool freeze = false;
 
         public MainWindow()
         {
@@ -182,6 +187,8 @@ namespace Sensnake
             });
 
             DrawSnake();
+            CheckPosition();
+
         }
 
         /// <summary>
@@ -192,22 +199,34 @@ namespace Sensnake
         private SolidColorBrush bodyColor(int blocksFromHead) => blocksFromHead % 2 == 0 ? Brushes.Orange : Brushes.Black;
 
         /// <summary>
-        /// Start a new game with default starting values
+        /// Start a new game with default starting values, clean the playground if restarted
         /// </summary>
         private void StartGame()
         {
+            // Clean the playground from the old core elements in case the game has been restarted
+            Playground.Children.Remove(food);   //Remove the food element
+            foreach(SnakeSegment segment in segments)   //Remove all snake segments from the map
+            {
+                Playground.Children.Remove(segment.shape);
+            }
+            score = 0;  // reset score
+            Playground.Children.Remove(gameOverBlock);  // remove Game Over box if lost once
+            segments.Clear();   // clear all the segments from the game
+
+            // Set default values and place the snake
             snakeLength = SnakeStartLength;
             snakeDirection = SnakeDirection.Right;
             segments.Add(new SnakeSegment
             {
                 position = new Point(0, SnakeSquareSize * 5),   // Starting position (in blocks) is (X,Y)=(0,5)
             });
-            tickTimer.Interval = TimeSpan.FromMilliseconds(MinSpeed);   // At the start the game refreshes snake's
-                                                                        // position once in 100 milliseconds
+            tickTimer.Interval = TimeSpan.FromMilliseconds(MinSpeed);   // Set the tick rate
+                                   
 
-            // Place the core elements on the map
+            // Place the new core elements on the map and enable movement
             DrawSnake();
             DrawFood();
+            freeze = false;
 
             // Start the tick timer
             tickTimer.IsEnabled = true;
@@ -287,6 +306,136 @@ namespace Sensnake
             Playground.Children.Add(food);  // add the circle to the Playground elements
             Canvas.SetLeft(food, position.X);   // position it to the correcnt X coordinate
             Canvas.SetTop(food, position.Y);    // position it to the correcnt Y coordinate
+        }
+
+        /// <summary>
+        /// Handles the keyboard input
+        /// Use key arrows to change snake direction
+        /// Use space to start a new game
+        /// </summary>
+        private void Window_KeyUp(object sender, KeyEventArgs e)
+        {
+            SnakeDirection previousDirection = snakeDirection;
+
+            switch(e.Key)
+            {
+                case Key.Up:
+                    if(snakeDirection != SnakeDirection.Down && !freeze)
+                        snakeDirection = SnakeDirection.Up;
+                    break;
+                case Key.Down:
+                    if (snakeDirection != SnakeDirection.Up && !freeze)
+                        snakeDirection = SnakeDirection.Down;
+                    break;
+                case Key.Left:
+                    if (snakeDirection != SnakeDirection.Right && !freeze)
+                        snakeDirection = SnakeDirection.Left;
+                    break;
+                case Key.Right:
+                    if (snakeDirection != SnakeDirection.Left && !freeze)
+                        snakeDirection = SnakeDirection.Right;
+                    break;
+                case Key.Space: // spacebar stars a new game
+                    StartGame();
+                    break;
+            }
+            if (snakeDirection != previousDirection)
+                MoveSnake();
+        }
+
+        private void CheckPosition()
+        {
+            Point headPosition = segments[segments.Count - 1].position;
+
+            CheckIfTail(headPosition);
+            CheckIfFood(headPosition);
+            CheckIfWall(headPosition);
+        }
+
+        private void CheckIfTail(Point headPosition)
+        {
+            foreach(SnakeSegment segment in segments.Take(segments.Count -1))
+            {
+                if (segment.position.X == headPosition.X && segment.position.Y == headPosition.Y)
+                    GameOver();
+            }
+        }
+
+        private void CheckIfWall(Point headPosition)
+        {
+            if (headPosition.X < 0
+                || headPosition.X >= Playground.ActualWidth
+                || headPosition.Y >= Playground.ActualHeight
+                || headPosition.Y < 0)
+            {
+                GameOver();
+            }
+        }
+
+        private void CheckIfFood(Point headPosition)
+        {
+            if(headPosition.X == Canvas.GetLeft(food) && headPosition.Y==Canvas.GetTop(food))
+            {
+                snakeLength++;
+                score += 402 - CurrentSpeed;
+                CurrentSpeed = Math.Max(MaxSpeed, CurrentSpeed - score);
+                tickTimer.Interval = TimeSpan.FromMilliseconds(CurrentSpeed);
+                Playground.Children.Remove(food);
+                DrawFood();
+            }
+        }
+
+        /// <summary>
+        /// Stops the tick timer, displays the Game Over box (containing score and the bitmap)
+        /// </summary>
+        private void GameOver()
+        {
+            tickTimer.IsEnabled = false; // Prevents the snake from moving autonomously
+            freeze = true;  // Prevents the snake from moving using arrows
+
+            // Creating a new Grid that will pop-up upon GameOver
+            gameOverBlock = new Grid
+            {
+                Width = 300,
+                Height = 200
+            };
+            // Add black transparent background with soft edges
+            gameOverBlock.Children.Add(
+                    new Rectangle
+                    {
+                        Fill = Brushes.Black,
+                        Opacity = .5,
+                        RadiusX = 10,
+                        RadiusY = 10
+                    });
+
+            // Add info text
+            gameOverBlock.Children.Add(
+                    new TextBlock { 
+                        Text = "Game over! Press space to retry. \nScore: " + score, 
+                        FontSize = 15,
+                        TextAlignment = TextAlignment.Center,
+                        Foreground = Brushes.White
+                    });
+
+            // Add bitmap
+            var image = new Image();
+            var fullFilePath = @"https://cdn.pixabay.com/photo/2016/03/31/19/42/circle-icons-1295218_960_720.png";
+
+            BitmapImage bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.UriSource = new Uri(fullFilePath, UriKind.Absolute);
+            bitmap.EndInit();
+
+            image.Source = bitmap;
+            image.Width = 80;
+            image.Height = 80;
+            gameOverBlock.Children.Add(image);
+
+            // Set the box position
+            Playground.Children.Add(gameOverBlock);
+            Canvas.SetLeft(gameOverBlock, Playground.Width / 2 - 150);
+            Canvas.SetTop(gameOverBlock, Playground.Height / 2 - 100);
         }
     }
 }

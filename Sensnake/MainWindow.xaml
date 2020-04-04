@@ -5,10 +5,17 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Sensnake"
         mc:Ignorable="d"
-        Title="Sensnake" SizeToContent="WidthAndHeight" ContentRendered="Window_ContentRendered">
+        Title="Sensnake" 
+        SizeToContent="WidthAndHeight" 
+        ContentRendered="Window_ContentRendered"
+        KeyUp="Window_KeyUp"
+        >
     <Border BorderBrush="Black" BorderThickness="5">
-        <Canvas Name="Playground" ClipToBounds="True" Width="400" Height="400">
+        <StackPanel Orientation="Horizontal">
+            <Canvas Name="Playground" ClipToBounds="True" Width="400" Height="400">
 
-        </Canvas>
+            </Canvas>
+        </StackPanel>
+        
     </Border>
 </Window>
