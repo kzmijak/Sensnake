@@ -21,14 +21,22 @@ namespace Sensnake
     /// </summary>
     public partial class MainWindow : Window
     {
+        private List<string> SnakeImages = new List<string>
+        {
+            "https://cdn.pixabay.com/photo/2014/10/25/00/17/snake-501986_960_720.jpg",
+            "https://cdn.pixabay.com/photo/2015/02/28/15/25/rattlesnake-653642_960_720.jpg",
+            "https://cdn.pixabay.com/photo/2013/12/10/18/22/green-tree-python-226553_960_720.jpg",
+            "https://cdn.pixabay.com/photo/2014/11/21/15/33/snake-540656_960_720.jpg",
+            "https://cdn.pixabay.com/photo/2015/02/28/15/25/rattlesnake-653646_960_720.jpg"
+        };
+        private ColorSet color = new ColorSet(); // Initialzie customizable color palette
+
         const int SnakeSquareSize = 20; // This is the pre-set square size of the playground tiles
-        const int SnakeStartLength = 2; // Starting snake length
+        const int SnakeStartLength = 1; // Starting snake length
         const int MinSpeed = 400;   // Starting speed of the game, the game will refresh once in 400 ticks (slowest)
         const int MaxSpeed = 100;   // Maximum speed of the game, the game will refresh once in 100 ticks (fastest)
         private int CurrentSpeed = MinSpeed;
         private int score = 0;      // Current player score (food eaten)
-
-        private SolidColorBrush headColor = Brushes.Red; // This is the color of the snake's head
         private List<SnakeSegment> segments = new List<SnakeSegment>(); // this is the list of visible segments
                                                                         // !!! Note: the lenghth of is not the same 
                                                                         // as snakeLength, which is more of a score 
@@ -42,7 +50,6 @@ namespace Sensnake
             = new System.Windows.Threading.DispatcherTimer();       // the MoveSnake() method using threads, which will do it for us
 
         private UIElement food = null;  // Circles on the map representing food
-        private SolidColorBrush foodColor = Brushes.OrangeRed; // Color of the food circle
 
         private Grid gameOverBlock = null;
         bool freeze = false;
@@ -51,6 +58,25 @@ namespace Sensnake
         {
             InitializeComponent(); // Initialize the main windows component
             tickTimer.Tick += TickTimer_Tick; // Subscribe to the threading handler
+            PgBitmap.Source = GetBitmap("https://cdn.pixabay.com/photo/2019/02/06/17/09/snake-3979601_960_720.jpg");
+        }
+
+        /// <summary>
+        /// Returns the bitmap from the selected URL
+        /// </summary>
+        /// <param name="url">URL link to the desired image</param>
+        /// <returns>Bitmap of the selected image</returns>
+        private BitmapImage GetBitmap(string url)
+        {
+            BitmapImage _image = new BitmapImage();
+            _image.BeginInit();
+            _image.UriSource = new Uri(url, UriKind.RelativeOrAbsolute);
+            _image.EndInit();
+            PgCHead.Fill = color.snakeHead;
+            PgCBody1.Fill = color.snakeBody1;
+            PgCBody2.Fill = color.snakeBody2;
+            PgCFood.Fill = color.food;
+            return _image;
         }
 
         /// <summary>
@@ -118,7 +144,7 @@ namespace Sensnake
                     {
                         Width = SnakeSquareSize,
                         Height = SnakeSquareSize,
-                        Fill = segment.isHead ? headColor : bodyColor(0)
+                        Fill = segment.isHead ? color.snakeHead : bodyColor(0)
                     };
 
                     Playground.Children.Add(segment.shape);
@@ -196,7 +222,7 @@ namespace Sensnake
         /// If it's odd, return Black
         /// If it's even, return Orange
         /// <summary>
-        private SolidColorBrush bodyColor(int blocksFromHead) => blocksFromHead % 2 == 0 ? Brushes.Orange : Brushes.Black;
+        private SolidColorBrush bodyColor(int blocksFromHead) => blocksFromHead % 2 == 0 ? color.snakeBody1 : color.snakeBody2;
 
         /// <summary>
         /// Start a new game with default starting values, clean the playground if restarted
@@ -221,7 +247,10 @@ namespace Sensnake
                 position = new Point(0, SnakeSquareSize * 5),   // Starting position (in blocks) is (X,Y)=(0,5)
             });
             tickTimer.Interval = TimeSpan.FromMilliseconds(MinSpeed);   // Set the tick rate
-                                   
+            CurrentSpeed = MinSpeed;    // Update the Current Speed 
+            PgScore.Text = 0.ToString();    // Reset the score display
+            PgSpeed.Text = CurrentSpeed.ToString(); // Reset the speed display
+
 
             // Place the new core elements on the map and enable movement
             DrawSnake();
@@ -300,7 +329,7 @@ namespace Sensnake
             {
                 Width = SnakeSquareSize,
                 Height = SnakeSquareSize,
-                Fill = foodColor
+                Fill = color.food
             };
 
             Playground.Children.Add(food);  // add the circle to the Playground elements
@@ -315,8 +344,10 @@ namespace Sensnake
         /// </summary>
         private void Window_KeyUp(object sender, KeyEventArgs e)
         {
+            // Get the previous directions...
             SnakeDirection previousDirection = snakeDirection;
-
+            
+            //... to prevent user from trying to reverse by choosing the opposite direction to the previous one
             switch(e.Key)
             {
                 case Key.Up:
@@ -339,19 +370,28 @@ namespace Sensnake
                     StartGame();
                     break;
             }
+            // If the user is trying to reverse 180*, ignore him
             if (snakeDirection != previousDirection)
                 MoveSnake();
         }
 
+        /// <summary>
+        /// Checks for collision with any in-game barrier or object 
+        /// </summary>
         private void CheckPosition()
         {
+            // Latest head position
             Point headPosition = segments[segments.Count - 1].position;
 
-            CheckIfTail(headPosition);
-            CheckIfFood(headPosition);
-            CheckIfWall(headPosition);
+            CheckIfTail(headPosition);  // Did he collide with his tail?
+            CheckIfFood(headPosition);  // Did he collide with the food object?
+            CheckIfWall(headPosition);  // Did he collide with the wall?
         }
 
+        /// <summary>
+        /// If the current head position (X,Y) equals one of the tail segment's (X,Y), Game over
+        /// </summary>
+        /// <param name="headPosition">Head's Point object</param>
         private void CheckIfTail(Point headPosition)
         {
             foreach(SnakeSegment segment in segments.Take(segments.Count -1))
@@ -361,6 +401,10 @@ namespace Sensnake
             }
         }
 
+        /// <summary>
+        /// If the current head position (X,Y) hits the game border, game over
+        /// </summary>
+        /// <param name="headPosition">Head's Point object</param>
         private void CheckIfWall(Point headPosition)
         {
             if (headPosition.X < 0
@@ -372,16 +416,30 @@ namespace Sensnake
             }
         }
 
+        /// <summary>
+        /// If the current head position (X,Y) hits the food object's (X,Y), 
+        /// elongate the snake
+        /// add score to the player
+        /// speed up the game
+        /// change snake bitmap
+        /// </summary>
+        /// <param name="headPosition">Head's Point object</param>
         private void CheckIfFood(Point headPosition)
         {
             if(headPosition.X == Canvas.GetLeft(food) && headPosition.Y==Canvas.GetTop(food))
             {
-                snakeLength++;
-                score += 402 - CurrentSpeed;
-                CurrentSpeed = Math.Max(MaxSpeed, CurrentSpeed - score);
-                tickTimer.Interval = TimeSpan.FromMilliseconds(CurrentSpeed);
-                Playground.Children.Remove(food);
-                DrawFood();
+                snakeLength++;  // elongate the snake by one segment
+                score += 402 - CurrentSpeed;    // calculate new score
+                CurrentSpeed = Math.Max(MaxSpeed, CurrentSpeed - score); //calculate new game speed 
+                tickTimer.Interval = TimeSpan.FromMilliseconds(CurrentSpeed); // enter new game speed
+                Playground.Children.Remove(food); // remove the previous food object
+                PgScore.Text = score.ToString(); // update display score
+                PgSpeed.Text = CurrentSpeed.ToString(); // update display score
+                DrawFood(); // plant new food
+
+                // Draw random snake image from the SnakeImages list and apply it
+                Random rand = new Random();
+                PgBitmap.Source = GetBitmap(SnakeImages[rand.Next(0,4)]);
             }
         }
 
@@ -422,12 +480,8 @@ namespace Sensnake
             var image = new Image();
             var fullFilePath = @"https://cdn.pixabay.com/photo/2016/03/31/19/42/circle-icons-1295218_960_720.png";
 
-            BitmapImage bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.UriSource = new Uri(fullFilePath, UriKind.Absolute);
-            bitmap.EndInit();
 
-            image.Source = bitmap;
+            image.Source = GetBitmap(fullFilePath);
             image.Width = 80;
             image.Height = 80;
             gameOverBlock.Children.Add(image);
@@ -436,6 +490,166 @@ namespace Sensnake
             Playground.Children.Add(gameOverBlock);
             Canvas.SetLeft(gameOverBlock, Playground.Width / 2 - 150);
             Canvas.SetTop(gameOverBlock, Playground.Height / 2 - 100);
+        }
+
+        // Declare colorsBox for easy access
+        // Reponsible for displaying color palette
+        private Grid colorsBox = new Grid
+        {
+            Width = 90,
+            Height = 90
+        };
+
+        // Object's button's color
+        private Ellipse selectedColor = null;
+
+        /// <summary>
+        /// Change game object's color button handler
+        /// </summary>
+        private void ChangeColor(object sender, RoutedEventArgs e)
+        {
+            // Remove possible previous iteration's box to prevent from multiplication of the grids
+            PgMenu.Children.Remove(colorsBox);
+
+            // Save the selected segment's adjacent element for later
+            selectedColor = (sender as Button).Content as Ellipse;
+
+            // Prepare the color available palette
+            List<SolidColorBrush> colors = new List<SolidColorBrush>{ 
+                Brushes.Red, 
+                Brushes.Green, 
+                Brushes.Blue,
+                Brushes.Black,
+                Brushes.White,
+                Brushes.Yellow,
+                Brushes.Pink,
+                Brushes.DarkRed,
+                Brushes.Orange};
+
+            // Count the iterations of the loop
+            int iteration = 1;
+            // Prepare the panel indexer
+            int panel = 0;
+            // Prepare the stackpanel that will collect and allign children stackpanels horizontally
+            StackPanel stackMother = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            // Prepare and fill the list with stackpanels
+            List<StackPanel> stackPanels = new List<StackPanel> { new StackPanel(), new StackPanel(), new StackPanel() };
+            foreach(SolidColorBrush color in colors)
+            {
+                // Make sure there are 3 stackpanels filled with 3 colors each
+                if(iteration == 4 || iteration == 7)
+                {
+                    if(stackPanels[panel] != null)
+                    {
+                        // Once in 3 iterations, switch stackpanels
+                        panel++;
+                    }
+                }
+                // Create ellipse representing current color in the iteration
+                Ellipse rectColor = new Ellipse
+                {
+                    Width = 20,
+                    Height = 20,
+                    Fill = color // current color from the palette
+                };
+                // Add button reponsible for selecting the color from the palette
+                Button setColor = new Button
+                {
+                    Background = Brushes.Transparent
+                };
+                // Assign the ellipse to the button
+                setColor.Content = rectColor;
+                // Assign the handler to the button
+                setColor.Click += ChangeColor_Select;
+                // Add the button to the stack panel
+                stackPanels[panel].Children.Add(setColor);
+
+                // Prepare counter for the next iteration
+                iteration ++;
+            }
+
+            // Pack the stackapanels to the mother stackpanel and add her to the grid.
+            stackMother.Children.Add(stackPanels[0]);
+            stackMother.Children.Add(stackPanels[1]);
+            stackMother.Children.Add(stackPanels[2]);
+            colorsBox.Children.Add(stackMother);
+
+            // Add the new grid to the visible menu
+            PgMenu.Children.Add(colorsBox);
+        }
+
+        /// <summary>
+        /// Handles the color selection from the palette
+        /// </summary>
+        private void ChangeColor_Select(object sender, RoutedEventArgs e)
+        {
+            // Remove the color palette box
+            PgMenu.Children.Remove(colorsBox);
+            
+            // selectedColor is an ellipse that was a part of the button adjacent to the object type
+            // we need to extract the object type from the ellipse's Name
+            string coloredObject = selectedColor.Name.Substring(3);
+
+            // From the palette box button, we select the selected color's brush and store it
+            SolidColorBrush newColor = ((sender as Button).Content as Ellipse).Fill as SolidColorBrush;
+
+            // Based on the substracted string, we can now tell which part to edit
+            // We can change the menu circle color and the game element's color from here
+            switch (coloredObject)
+            {
+                case "Head":
+                    color.snakeHead = newColor;
+                    PgCHead.Fill = newColor;
+                    break;
+                case "Body1":
+                    color.snakeBody1 = newColor;
+                    PgCBody1.Fill = newColor;
+                    break;
+                case "Body2":
+                    color.snakeBody2 = newColor;
+                    PgCBody2.Fill = newColor;
+                    break;
+                case "Food":
+                    color.food = newColor;
+                    PgCFood.Fill = newColor;
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Initiate the Game Over sequence
+        /// </summary>
+        private void EndButton_Click(object sender, RoutedEventArgs e)
+        {
+            GameOver();
+        }
+
+        /// <summary>
+        /// Restart the game
+        /// </summary>
+        private void RestartButton_Click(object sender, RoutedEventArgs e)
+        {
+            StartGame();
+        }
+
+        /// <summary>
+        /// Close the app
+        /// </summary>
+        private void ExitButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
+        /// <summary>
+        /// Allows for dragging the game window
+        /// </summary>
+        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            this.DragMove();
         }
     }
 }

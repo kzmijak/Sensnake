@@ -9,13 +9,88 @@
         SizeToContent="WidthAndHeight" 
         ContentRendered="Window_ContentRendered"
         KeyUp="Window_KeyUp"
+        ResizeMode="NoResize" 
+        WindowStyle="None"
+        MouseDown="Window_MouseDown"
         >
-    <Border BorderBrush="Black" BorderThickness="5">
+    <Border BorderBrush="Black" BorderThickness="5" Background="Black">
         <StackPanel Orientation="Horizontal">
             <Canvas Name="Playground" ClipToBounds="True" Width="400" Height="400">
 
             </Canvas>
+            <Grid Margin="5 0 0 0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"></RowDefinition>
+                    <RowDefinition Height="auto"></RowDefinition>
+                </Grid.RowDefinitions>
+                <Rectangle Fill="Gray" RadiusX="10" RadiusY="10" Width="100" Grid.Row="0" Grid.RowSpan="2"></Rectangle>
+                <StackPanel Name="PgMenu" Margin="5 5 5 5" Grid.Row="0">
+
+                    <Image Width="60"
+                           Height="60"
+                           Stretch="Fill"
+                           Name ="PgBitmap">
+                        <Image.OpacityMask>
+                            <RadialGradientBrush GradientOrigin="0.5,0.5" Center="0.5,0.5" RadiusX="0.5" RadiusY="0.5">
+                                <GradientStop Color="#ffffffff" Offset="0.8" />
+                                <GradientStop Color="#00ffffff" Offset="0.8" />
+                            </RadialGradientBrush>
+                        </Image.OpacityMask>
+                    </Image>
+                    
+                    <TextBlock TextAlignment="Center" FontSize="13">Sensnake</TextBlock>
+                    <TextBlock TextAlignment="Center" FontSize="10">Snakes Sense!</TextBlock>
+                    <Grid>
+                        <TextBlock>Score:</TextBlock>
+                        <TextBlock HorizontalAlignment="Right" Name="PgScore"></TextBlock>
+                    </Grid>
+                    <Grid>
+                        <TextBlock>Speed:</TextBlock>
+                        <TextBlock HorizontalAlignment="Right" Name="PgSpeed"></TextBlock>
+                    </Grid>
+                    <TextBlock Margin="0 10" TextAlignment="Center">Colors</TextBlock>
+
+                    <Grid>
+                        <TextBlock>Head</TextBlock>
+                        <Button Click="ChangeColor" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0">
+                            <Button.Content>
+                                <Ellipse Width="10" Height="10" Name="PgCHead"></Ellipse>
+                            </Button.Content>
+                        </Button>
+                    </Grid>
+                    <Grid>
+                        <TextBlock>Body 1</TextBlock>
+                        <Button Click="ChangeColor" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0">
+                            <Button.Content>
+                                <Ellipse Width="10" Height="10" Name="PgCBody1"></Ellipse>
+                            </Button.Content>
+                        </Button>
+                    </Grid>
+                    <Grid>
+                        <TextBlock>Body 2</TextBlock>
+                        <Button Click="ChangeColor" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0">
+                            <Button.Content>
+                                <Ellipse Width="10" Height="10" Name="PgCBody2"></Ellipse>
+                            </Button.Content>
+                        </Button>
+                    </Grid>
+                    <Grid>
+                        <TextBlock>Food</TextBlock>
+                        <Button Click="ChangeColor" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0">
+                            <Button.Content>
+                                <Ellipse Width="10" Height="10" Name="PgCFood"></Ellipse>
+                            </Button.Content>
+                        </Button>
+                    </Grid>
+                    <TextBlock Name="PgRestartWarning" Foreground="Red" FontSize="7" TextAlignment="Center" Visibility="Hidden">Restart to apply</TextBlock>
+                    
+                </StackPanel>
+                <StackPanel Grid.Row="1">
+                    <Button Background="Transparent" BorderThickness="0" Width="40" Click="EndButton_Click">End</Button>
+                    <Button Background="Transparent" BorderThickness="0" Width="40" Click="RestartButton_Click">Restart</Button>
+                    <Button Margin="0 0 0 5" Background="Transparent" BorderThickness="0" Width="40" Click="ExitButton_Click">Exit</Button>
+                </StackPanel>
+            </Grid>
         </StackPanel>
-        
     </Border>
 </Window>
